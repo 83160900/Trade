@@ -5,13 +5,20 @@ from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
 def get_engine():
-    # Prioridade 1: DATABASE_URL do Railway
-    # Prioridade 2: DB_URL do settings.py
-    url = os.getenv("DATABASE_URL", DB_URL)
+    # No Railway, a variável DATABASE_URL é a fonte oficial.
+    # Em local, usamos a DB_URL do settings.py.
+    url = os.getenv("DATABASE_URL")
     
-    # Validação básica para evitar o erro de parse do SQLAlchemy
+    if not url:
+        # Se não estiver no Railway, usa a URL do settings
+        url = DB_URL
+        print("Usando URL de banco de dados do settings.py")
+    else:
+        print("Usando DATABASE_URL do ambiente (Railway)")
+    
+    # Validação rigorosa
     if not url or not isinstance(url, str) or "://" not in url:
-        print(f"ERRO: URL do banco inválida ou ausente: {url}")
+        print(f"ERRO CRÍTICO: URL do banco inválida: {url}")
         return None
         
     try:

@@ -8,7 +8,8 @@ CLIENT_ID = 1
 
 # Banco de Dados PostgreSQL (Railway)
 # Use a Connection URL que você copiou (Public URL para rodar no seu PC)
-DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:WrTbVZqHVcYRVcXAAYIVuEFvrenWMRTk@turntable.proxy.rlwy.net:44872/railway")
+# NOTA: O Railway injeta DATABASE_URL automaticamente no deploy.
+DB_URL = "postgresql://postgres:WrTbVZqHVcYRVcXAAYIVuEFvrenWMRTk@turntable.proxy.rlwy.net:44872/railway"
 
 # Strategy Params
 DEFAULT_SYMBOL = 'AAPL'
