@@ -6,32 +6,28 @@ from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
 def get_engine():
-    # Detecta se está no Railway (DATABASE_URL existe) ou local (usa DB_URL)
+    # 1. Tenta a variável oficial do Railway (Rede Interna)
     url = os.environ.get("DATABASE_URL")
     
+    # 2. Se não houver, tenta a URL que você configurou no settings.py
     if not url:
         url = DB_URL
-        print(f"Ambiente LOCAL detectado. Usando DB_URL de settings.py")
-    else:
-        print("Ambiente RAILWAY detectado. Usando DATABASE_URL do sistema.")
-
+    
     if not url or "://" not in str(url):
-        print("ERRO: Nenhuma URL de banco de dados encontrada.")
         return None
         
     try:
-        # Força o uso do driver psycopg2 se não estiver especificado
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
+        # Correção crucial para o SQLAlchemy no Railway/Heroku
+        if str(url).startswith("postgres://"):
+            url = str(url).replace("postgres://", "postgresql://", 1)
             
         return create_engine(
             url, 
             pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10
+            connect_args={'connect_timeout': 10}
         )
     except Exception as e:
-        print(f"Falha ao criar engine: {e}")
+        print(f"Erro ao criar engine: {e}")
         return None
 
 # Engine global inicializado
