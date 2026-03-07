@@ -7,9 +7,8 @@ IB_PORT = 7497  # 7497 para Paper Trading, 7496 para Live
 CLIENT_ID = 1
 
 # Banco de Dados PostgreSQL (Railway)
-# NOTA: O Railway injeta DATABASE_URL automaticamente no deploy.
-# Usando a URL pública estruturada conforme solicitado para fallback
-DB_URL = "postgresql://postgres:WrTbVZqHVcYRVcXAAYIVuEFvrenWMRTk@turntable.proxy.rlwy.net:44872/railway"
+# Usando a URL pública real para o seu PC e o Railway usar DATABASE_URL automático
+DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:WrTbVZqHVcYRVcXAAYIVuEFvrenWMRTk@turntable.proxy.rlwy.net:44872/railway")
 
 # Strategy Params
 DEFAULT_SYMBOL = 'AAPL'

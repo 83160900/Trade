@@ -7,14 +7,8 @@ from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
 def get_engine():
-    # 1. Tenta DATABASE_URL (Railway)
-    url = os.getenv("DATABASE_URL")
-    if url:
-        print("DATABASE_URL encontrada.")
-    else:
-        # 2. Tenta DB_URL (settings.py)
-        url = DB_URL
-        print("Usando fallback DB_URL.")
+    # O settings.py agora já resolve o getenv corretamente.
+    url = DB_URL
     
     if not url or "://" not in str(url):
         return None
