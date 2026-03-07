@@ -1,1 +1,0 @@
-SELECT * FROM marcacoes ORDER BY data DESC;

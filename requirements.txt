@@ -1,0 +1,10 @@
+ib_insync
+pandas
+numpy
+ta
+yfinance
+streamlit
+plotly
+pytz
+psycopg2-binary
+sqlalchemy

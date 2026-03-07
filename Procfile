@@ -1,1 +1,2 @@
-web: java -jar target/treinamento-0.0.1-SNAPSHOT.jar
+web: streamlit run app.py --server.port $PORT
+worker: python trading_loop.py

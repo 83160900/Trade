@@ -1,5 +1,0 @@
-ib_insync
-pandas
-numpy
-ta
-yfinance
