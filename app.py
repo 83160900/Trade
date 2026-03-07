@@ -30,9 +30,22 @@ def load_market_data():
 
 # --- SIDEBAR: RESUMO DO DIA ---
 st.sidebar.title("📑 Resumo do Dia")
-daily_pnl = get_daily_pnl(DEFAULT_SYMBOL)
-pnl_color = "green" if daily_pnl >= 0 else "red"
 
+# Verificação de Saúde do Banco
+from database.db_manager import check_db_connection
+db_ok, db_msg = check_db_connection()
+
+if not db_ok:
+    st.sidebar.error(f"❌ Erro de Banco: {db_msg[:50]}...")
+    st.warning("O painel está operando em modo offline ou com erro de conexão ao banco.")
+    daily_pnl = 0.0
+    open_pos = pd.DataFrame()
+else:
+    st.sidebar.success("✅ Banco Conectado")
+    daily_pnl = get_daily_pnl(DEFAULT_SYMBOL)
+    open_pos = get_open_position(DEFAULT_SYMBOL)
+
+pnl_color = "green" if daily_pnl >= 0 else "red"
 st.sidebar.markdown(f"### PnL Hoje: <span style='color:{pnl_color}'>{daily_pnl*100:.2f}%</span>", unsafe_allow_html=True)
 st.sidebar.write(f"**Ativo:** {DEFAULT_SYMBOL}")
 st.sidebar.divider()
@@ -47,24 +60,30 @@ else:
 st.sidebar.divider()
 st.sidebar.header("🔌 Status de Conexão")
 st.sidebar.write("🟢 **TWS (Local):** Conectado")
-st.sidebar.write("🟢 **Banco (Railway):** Sincronizado")
+db_status_icon = "🟢" if db_ok else "🔴"
+st.sidebar.write(f"{db_status_icon} **Banco (Railway):** {'Sincronizado' if db_ok else 'Desconectado'}")
 
 # --- PAINEL PRINCIPAL ---
 st.title(f"📊 {DEFAULT_SYMBOL} - Espelhamento TWS")
 
-# Tentar inicializar o banco se falhar
-try:
-    from database.db_manager import init_db
-    print("Tentando inicializar banco no Railway...")
-    init_db()
-    print("Banco inicializado ou já existia.")
-except Exception as e:
-    st.error(f"Erro ao conectar ao banco no Railway: {e}")
-    print(f"Erro no banco: {e}")
+# Tentar inicializar o banco se falhar (Apenas se a conexão estiver OK)
+if db_ok:
+    try:
+        from database.db_manager import init_db
+        init_db()
+    except Exception as e:
+        st.error(f"Falha ao sincronizar tabelas: {e}")
 
 # Métricas de Topo
 col1, col2, col3, col4 = st.columns(4)
-signals_df = get_recent_signals(1)
+
+# Inicializa variáveis para evitar NameError se db_ok for False
+signals_df = pd.DataFrame()
+if db_ok:
+    try:
+        signals_df = get_recent_signals(1)
+    except:
+        pass
 
 if not signals_df.empty:
     last_s = signals_df.iloc[0]
@@ -87,9 +106,17 @@ if not market_df.empty:
 
 # Histórico de Execuções
 st.subheader("📜 Histórico de Sinais e Ordens")
-all_signals = get_recent_signals(20)
-if not all_signals.empty:
-    st.table(all_signals[['timestamp', 'symbol', 'price', 'signal', 'pnl_percent', 'status']])
+if db_ok:
+    try:
+        all_signals = get_recent_signals(20)
+        if not all_signals.empty:
+            st.table(all_signals[['timestamp', 'symbol', 'price', 'signal', 'pnl_percent', 'status']])
+        else:
+            st.info("Nenhum sinal registrado ainda.")
+    except Exception as e:
+        st.error("Erro ao carregar histórico.")
+else:
+    st.warning("Histórico indisponível sem conexão ao banco.")
 
 # Botão de Execução Forçada (Nota: Pode falhar em nuvem se o ambiente for read-only)
 if st.sidebar.button("Forçar Análise Agora"):

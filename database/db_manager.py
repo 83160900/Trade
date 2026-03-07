@@ -5,14 +5,30 @@ from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
 def get_engine():
+    # Detecta se está no Railway para usar a URL interna ou externa
+    # DATABASE_URL no Railway geralmente é injetada automaticamente
+    url = os.getenv("DATABASE_URL", DB_URL)
     return create_engine(
-        DB_URL, 
+        url, 
         pool_pre_ping=True,
-        pool_recycle=3600,
-        connect_args={'connect_timeout': 30}
+        pool_recycle=300, # Reduzido para evitar conexões mortas no Railway
+        connect_args={'connect_timeout': 10}
     )
 
+import os
+from sqlalchemy.exc import SQLAlchemyError
+
+# Engine global mas será inicializado com tratamento de erro
 engine = get_engine()
+
+def check_db_connection():
+    """Verifica se a conexão com o banco está ativa."""
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+            return True, "Conectado"
+    except Exception as e:
+        return False, str(e)
 
 def init_db():
     """Cria as tabelas se não existirem no PostgreSQL."""
