@@ -5,24 +5,36 @@ from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
 def get_engine():
-    # Detecta se está no Railway para usar a URL interna ou externa
-    # DATABASE_URL no Railway geralmente é injetada automaticamente
+    # Prioridade 1: DATABASE_URL do Railway
+    # Prioridade 2: DB_URL do settings.py
     url = os.getenv("DATABASE_URL", DB_URL)
-    return create_engine(
-        url, 
-        pool_pre_ping=True,
-        pool_recycle=300, # Reduzido para evitar conexões mortas no Railway
-        connect_args={'connect_timeout': 10}
-    )
+    
+    # Validação básica para evitar o erro de parse do SQLAlchemy
+    if not url or not isinstance(url, str) or "://" not in url:
+        print(f"ERRO: URL do banco inválida ou ausente: {url}")
+        return None
+        
+    try:
+        return create_engine(
+            url, 
+            pool_pre_ping=True,
+            pool_recycle=300,
+            connect_args={'connect_timeout': 10}
+        )
+    except Exception as e:
+        print(f"Erro ao criar engine: {e}")
+        return None
 
 import os
 from sqlalchemy.exc import SQLAlchemyError
 
-# Engine global mas será inicializado com tratamento de erro
+# Engine inicializado com segurança
 engine = get_engine()
 
 def check_db_connection():
     """Verifica se a conexão com o banco está ativa."""
+    if engine is None:
+        return False, "URL do banco de dados não configurada ou inválida."
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
@@ -68,6 +80,9 @@ def init_db():
 
 def save_signal(symbol, price, signal, risk_value):
     """Salva o sinal gerado no banco PostgreSQL."""
+    if engine is None:
+        print("Erro: Engine não inicializado. Sinal não salvo.")
+        return
     df = pd.DataFrame([{
         'timestamp': datetime.now(),
         'symbol': symbol,
@@ -81,25 +96,41 @@ def save_signal(symbol, price, signal, risk_value):
 
 def get_daily_pnl(symbol):
     """Calcula o PnL total do dia."""
+    if engine is None: return 0
     today = datetime.now().strftime('%Y-%m-%d')
     query = f"SELECT SUM(pnl_percent) FROM signals WHERE symbol='{symbol}' AND timestamp::text LIKE '{today}%' AND status='CLOSED'"
-    with engine.connect() as conn:
-        result = conn.execute(text(query)).fetchone()[0]
-    return result if result else 0
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(query)).fetchone()[0]
+        return result if result else 0
+    except:
+        return 0
 
 def get_open_position(symbol):
     """Busca posição aberta no banco."""
+    if engine is None: return pd.DataFrame()
     query = f"SELECT * FROM signals WHERE symbol='{symbol}' AND status='OPEN' LIMIT 1"
-    return pd.read_sql(query, engine)
+    try:
+        return pd.read_sql(query, engine)
+    except:
+        return pd.DataFrame()
 
 def close_position(pos_id, pnl_percent):
     """Fecha a posição no banco."""
-    with engine.connect() as conn:
-        conn.execute(text("UPDATE signals SET status='CLOSED', pnl_percent=:pnl WHERE id=:id"), 
-                     {"pnl": pnl_percent, "id": pos_id})
-        conn.commit()
+    if engine is None: return
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("UPDATE signals SET status='CLOSED', pnl_percent=:pnl WHERE id=:id"), 
+                         {"pnl": pnl_percent, "id": pos_id})
+            conn.commit()
+    except Exception as e:
+        print(f"Erro ao fechar posição: {e}")
 
 def get_recent_signals(limit=10):
     """Busca sinais recentes."""
+    if engine is None: return pd.DataFrame()
     query = f"SELECT * FROM signals ORDER BY timestamp DESC LIMIT {limit}"
-    return pd.read_sql(query, engine)
+    try:
+        return pd.read_sql(query, engine)
+    except:
+        return pd.DataFrame()
