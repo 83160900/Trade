@@ -1,1 +1,8 @@
-[server]`nport = $PORT`nheadless = true`nenableCORS = false`n
+[server]
+headless = true
+port = 8501
+enableCORS = false
+address = "0.0.0.0"
+
+[browser]
+gatherUsageStats = false
