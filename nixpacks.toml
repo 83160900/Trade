@@ -2,4 +2,4 @@
 installCommand = "pip install -r requirements.txt"
 
 [start]
-command = "streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true"
+command = "streamlit run app.py --server.port 8584 --server.address 0.0.0.0 --server.headless true"

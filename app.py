@@ -3,7 +3,7 @@ import os
 
 # LOG DE INICIALIZAÇÃO PARA O RAILWAY
 print("--- INICIANDO PAINEL WEB NO RAILWAY ---")
-print(f"PORTA: {os.getenv('PORT', '8501')}")
+print(f"PORTA FORÇADA: 8584")
 
 import pandas as pd
 import plotly.graph_objects as go
