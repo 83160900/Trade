@@ -7,7 +7,8 @@ IB_PORT = 7497  # 7497 para Paper Trading, 7496 para Live
 CLIENT_ID = 1
 
 # Banco de Dados PostgreSQL (Railway)
-DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:user@host:port/database")
+# Use a Connection URL que você copiou (Public URL para rodar no seu PC)
+DB_URL = os.getenv("DATABASE_URL", "postgresql://postgres:WrTbVZqHVcYRVcXAAYIVuEFvrenWMRTk@turntable.proxy.rlwy.net:44872/railway")
 
 # Strategy Params
 DEFAULT_SYMBOL = 'AAPL'

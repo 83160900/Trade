@@ -8,18 +8,9 @@ from database.db_manager import *
 from execution.broker_ib import connect_ib
 
 def is_market_open():
-    """Verifica se o mercado de NY está aberto (9:30 - 16:00)."""
-    tz_ny = pytz.timezone('America/New_York')
-    now_ny = datetime.now(tz_ny)
-    
-    # Verifica dia da semana (0-4 é Seg-Sex)
-    if now_ny.weekday() > 4:
-        return False
-        
-    start_time = now_ny.replace(hour=int(MARKET_OPEN.split(':')[0]), minute=int(MARKET_OPEN.split(':')[1]), second=0)
-    end_time = now_ny.replace(hour=int(MARKET_CLOSE.split(':')[0]), minute=int(MARKET_CLOSE.split(':')[1]), second=0)
-    
-    return start_time <= now_ny <= end_time
+    """Verifica se o mercado de NY está aberto. 
+    RETORNANDO TRUE PARA TESTE FORA DO HORÁRIO AGORA."""
+    return True
 
 def trading_bot_loop():
     print("--- Iniciando Robô em Modo Automático ---")

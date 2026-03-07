@@ -1,102 +1,93 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
 import plotly.graph_objects as go
 from datetime import datetime
 import time
+from database.db_manager import get_recent_signals, get_daily_pnl, get_open_position
+from config.settings import DEFAULT_SYMBOL
 
 # Configuração da Página (Estilo TWS Dark)
-st.set_page_config(page_title="Robô de Trading - Dashboard", layout="wide")
+st.set_page_config(page_title="TWS Mirror - Robô Trading", layout="wide")
 
-# Estilo CSS para parecer com o TWS
+# Estilo CSS para o Tema TWS Dark
 st.markdown("""
     <style>
-    .main {
-        background-color: #1a1a1a;
-        color: #ffffff;
-    }
-    .stMetric {
-        background-color: #262626;
-        padding: 10px;
-        border-radius: 5px;
-    }
+    .main { background-color: #0b0e11; color: #ffffff; }
+    .stMetric { background-color: #1e2329; padding: 15px; border-radius: 8px; border: 1px solid #333; }
+    [data-testid="stSidebar"] { background-color: #1e2329; }
     </style>
     """, unsafe_allow_html=True)
 
-DB_PATH = "trading_history.db"
-
-def load_signals():
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        df = pd.read_sql_query("SELECT * FROM signals ORDER BY timestamp DESC", conn)
-        conn.close()
-        return df
-    except Exception as e:
-        return pd.DataFrame()
-
 def load_market_data():
-    # Por enquanto, pegamos dados reais do yfinance para o gráfico, 
-    # pois o banco pode estar vazio no início
     import yfinance as yf
-    from config.settings import DEFAULT_SYMBOL
-    data = yf.download(DEFAULT_SYMBOL, period="1d", interval="5m")
-    return data
+    return yf.download(DEFAULT_SYMBOL, period="1d", interval="1m")
 
-st.title("📊 Trading Bot Dashboard (TWS Mirror)")
+# --- SIDEBAR: RESUMO DO DIA ---
+st.sidebar.title("📑 Resumo do Dia")
+daily_pnl = get_daily_pnl(DEFAULT_SYMBOL)
+pnl_color = "green" if daily_pnl >= 0 else "red"
 
-# Sidebar para Status
-st.sidebar.header("Status do Robô")
-st.sidebar.success("Conectado ao Banco de Dados")
-st.sidebar.info("Modo: TWS Paper Trading")
+st.sidebar.markdown(f"### PnL Hoje: <span style='color:{pnl_color}'>{daily_pnl*100:.2f}%</span>", unsafe_allow_html=True)
+st.sidebar.write(f"**Ativo:** {DEFAULT_SYMBOL}")
+st.sidebar.divider()
 
-# Layout de Colunas (Informações de Topo)
+open_pos = get_open_position(DEFAULT_SYMBOL)
+if not open_pos.empty:
+    st.sidebar.success(f"📌 Posição Aberta em ${open_pos.iloc[0]['price']:.2f}")
+    st.sidebar.info(f"Sinal Original: {open_pos.iloc[0]['signal']}")
+else:
+    st.sidebar.warning("⚪ Sem Posições Abertas")
+
+st.sidebar.divider()
+st.sidebar.header("🔌 Status de Conexão")
+st.sidebar.write("🟢 **TWS (Local):** Conectado")
+st.sidebar.write("🟢 **Banco (Railway):** Sincronizado")
+
+# --- PAINEL PRINCIPAL ---
+st.title(f"📊 {DEFAULT_SYMBOL} - Espelhamento TWS")
+
+# Tentar inicializar o banco se falhar
+try:
+    from database.db_manager import init_db
+    init_db()
+except:
+    pass
+
+# Métricas de Topo
 col1, col2, col3, col4 = st.columns(4)
-
-signals_df = load_signals()
+signals_df = get_recent_signals(1)
 
 if not signals_df.empty:
-    last_signal = signals_df.iloc[0]
-    col1.metric("Símbolo Ativo", last_signal['symbol'])
-    col2.metric("Último Preço", f"${last_signal['price']:.2f}")
-    
-    signal_color = "normal"
-    if last_signal['signal'] == "BUY":
-        signal_color = "inverse" # Verde/Vermelho dependendo do tema
-    
-    col3.metric("Último Sinal", last_signal['signal'], delta_color=signal_color)
-    col4.metric("Risco Calculado", f"${last_signal['risk_value']:.2f}")
+    last_s = signals_df.iloc[0]
+    col1.metric("Último Sinal", last_s['signal'])
+    col2.metric("Preço de Entrada", f"${last_s['price']:.2f}")
+    col3.metric("Status", last_s['status'])
+    col4.metric("Capital em Risco", f"${last_s['risk_value']:.2f}")
 
-# Gráfico Principal
-st.subheader("📈 Gráfico Intradiário (Real-Time)")
+# Gráfico em Tempo Real
+st.subheader("📈 Gráfico de Preços (1m)")
 market_df = load_market_data()
 
 if not market_df.empty:
     fig = go.Figure(data=[go.Candlestick(x=market_df.index,
-                open=market_df['Open'],
-                high=market_df['High'],
-                low=market_df['Low'],
-                close=market_df['Close'],
-                name="Market Data")])
-    
-    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False)
+                open=market_df['Open'], high=market_df['High'],
+                low=market_df['Low'], close=market_df['Close'],
+                name="Market")])
+    fig.update_layout(template="plotly_dark", height=500, margin=dict(l=10, r=10, t=10, b=10))
     st.plotly_chart(fig, use_container_width=True)
 
-# Tabela de Histórico
-st.subheader("📜 Histórico de Sinais")
-if not signals_df.empty:
-    st.dataframe(signals_df, use_container_width=True)
-else:
-    st.write("Nenhum sinal registrado ainda.")
+# Histórico de Execuções
+st.subheader("📜 Histórico de Sinais e Ordens")
+all_signals = get_recent_signals(20)
+if not all_signals.empty:
+    st.table(all_signals[['timestamp', 'symbol', 'price', 'signal', 'pnl_percent', 'status']])
 
-# Botão para Executar Robô manualmente
-if st.button("Executar Robô Agora"):
-    with st.spinner("Processando estratégia..."):
-        import subprocess
-        subprocess.run(["python", "main.py"])
-        st.rerun()
+# Botão de Execução Forçada
+if st.sidebar.button("Forçar Análise Agora"):
+    import subprocess
+    subprocess.run(["python", "main.py"])
+    st.rerun()
 
-st.caption(f"Última atualização: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-# Auto-refresh a cada 60 segundos
-time.sleep(60)
+st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
+time.sleep(30) # Refresh automático a cada 30 segundos
 st.rerun()

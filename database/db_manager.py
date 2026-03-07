@@ -4,39 +4,51 @@ from sqlalchemy import create_engine, text
 from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
-engine = create_engine(DB_URL)
+def get_engine():
+    return create_engine(
+        DB_URL, 
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        connect_args={'connect_timeout': 30}
+    )
+
+engine = get_engine()
 
 def init_db():
     """Cria as tabelas se não existirem no PostgreSQL."""
-    with engine.connect() as conn:
-        # Tabela para logs de sinais e preços
-        conn.execute(text('''
-            CREATE TABLE IF NOT EXISTS signals (
-                id SERIAL PRIMARY KEY,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                symbol TEXT,
-                price REAL,
-                signal TEXT,
-                risk_value REAL,
-                pnl_percent REAL DEFAULT 0,
-                status TEXT DEFAULT 'OPEN'
-            )
-        '''))
-        
-        # Tabela para o histórico de mercado
-        conn.execute(text('''
-            CREATE TABLE IF NOT EXISTS market_history (
-                id SERIAL PRIMARY KEY,
-                timestamp TIMESTAMP,
-                symbol TEXT,
-                "open" REAL,
-                "high" REAL,
-                "low" REAL,
-                "close" REAL,
-                volume REAL
-            )
-        '''))
-        conn.commit()
+    try:
+        with engine.connect() as conn:
+            # Tabela para logs de sinais e preços
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS signals (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    symbol TEXT,
+                    price REAL,
+                    signal TEXT,
+                    risk_value REAL,
+                    pnl_percent REAL DEFAULT 0,
+                    status TEXT DEFAULT 'OPEN'
+                )
+            '''))
+            
+            # Tabela para o histórico de mercado
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS market_history (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP,
+                    symbol TEXT,
+                    "open" REAL,
+                    "high" REAL,
+                    "low" REAL,
+                    "close" REAL,
+                    volume REAL
+                )
+            '''))
+            conn.commit()
+            print("Banco de dados inicializado com sucesso.")
+    except Exception as e:
+        print(f"Erro ao inicializar banco de dados: {e}")
 
 def save_signal(symbol, price, signal, risk_value):
     """Salva o sinal gerado no banco PostgreSQL."""
@@ -46,7 +58,8 @@ def save_signal(symbol, price, signal, risk_value):
         'price': float(price),
         'signal': signal,
         'risk_value': float(risk_value),
-        'status': 'OPEN'
+        'status': 'OPEN',
+        'pnl_percent': 0.0
     }])
     df.to_sql('signals', engine, if_exists='append', index=False)
 
