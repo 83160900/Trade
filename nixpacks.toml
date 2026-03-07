@@ -1,9 +1,0 @@
-[phases.setup]
-nixpkgsArchive = "293a28df9d7fffeec751c67d71001e3895e729a1"
-nixpkgsLib = "nixpkgs"
-
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
-
-[start]
-cmd = "streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false"

@@ -1,4 +1,10 @@
 import streamlit as st
+import os
+
+# LOG DE INICIALIZAÇÃO PARA O RAILWAY
+print("--- INICIANDO PAINEL WEB NO RAILWAY ---")
+print(f"PORTA: {os.getenv('PORT', '8501')}")
+
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
