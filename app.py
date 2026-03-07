@@ -91,12 +91,16 @@ all_signals = get_recent_signals(20)
 if not all_signals.empty:
     st.table(all_signals[['timestamp', 'symbol', 'price', 'signal', 'pnl_percent', 'status']])
 
-# Botão de Execução Forçada
+# Botão de Execução Forçada (Nota: Pode falhar em nuvem se o ambiente for read-only)
 if st.sidebar.button("Forçar Análise Agora"):
-    import subprocess
-    subprocess.run(["python", "main.py"])
-    st.rerun()
+    try:
+        import subprocess
+        subprocess.run(["python", "main.py"])
+        st.success("Análise executada!")
+        st.rerun()
+    except Exception as e:
+        st.sidebar.error(f"Erro ao executar: {e}")
 
 st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
-time.sleep(30) # Refresh automático a cada 30 segundos
-st.rerun()
+# Removido st.rerun() infinito para evitar instabilidade no Railway.
+# O Streamlit já gerencia o estado da sessão e o refresh automático pode ser feito pelo usuário ou widgets específicos.
