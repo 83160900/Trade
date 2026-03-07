@@ -49,9 +49,12 @@ st.title(f"📊 {DEFAULT_SYMBOL} - Espelhamento TWS")
 # Tentar inicializar o banco se falhar
 try:
     from database.db_manager import init_db
+    print("Tentando inicializar banco no Railway...")
     init_db()
-except:
-    pass
+    print("Banco inicializado ou já existia.")
+except Exception as e:
+    st.error(f"Erro ao conectar ao banco no Railway: {e}")
+    print(f"Erro no banco: {e}")
 
 # Métricas de Topo
 col1, col2, col3, col4 = st.columns(4)
