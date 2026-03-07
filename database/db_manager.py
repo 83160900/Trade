@@ -1,5 +1,4 @@
 import os
-from sqlalchemy.exc import SQLAlchemyError
 import pandas as pd
 from datetime import datetime
 from sqlalchemy import create_engine, text
@@ -7,18 +6,35 @@ from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
 def get_engine():
-    # O settings.py agora já resolve o getenv corretamente.
-    url = DB_URL
+    # Detecta se está no Railway (DATABASE_URL existe) ou local (usa DB_URL)
+    url = os.environ.get("DATABASE_URL")
     
+    if not url:
+        url = DB_URL
+        print(f"Ambiente LOCAL detectado. Usando DB_URL de settings.py")
+    else:
+        print("Ambiente RAILWAY detectado. Usando DATABASE_URL do sistema.")
+
     if not url or "://" not in str(url):
+        print("ERRO: Nenhuma URL de banco de dados encontrada.")
         return None
         
     try:
-        return create_engine(str(url), pool_pre_ping=True)
-    except:
+        # Força o uso do driver psycopg2 se não estiver especificado
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+            
+        return create_engine(
+            url, 
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10
+        )
+    except Exception as e:
+        print(f"Falha ao criar engine: {e}")
         return None
 
-# Inicialização do engine movida para dentro das funções ou verificada
+# Engine global inicializado
 engine = get_engine()
 
 def check_db_connection():
