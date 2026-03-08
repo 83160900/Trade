@@ -6,23 +6,22 @@ from config.settings import DB_URL
 
 # Criar motor de conexão SQLAlchemy para PostgreSQL
 def get_engine():
-    # 1. Tenta a variável oficial do Railway (Rede Interna)
+    # 1. Tenta DATABASE_URL (Railway) - Se estiver vazia ou inválida, usa o settings
     url = os.environ.get("DATABASE_URL")
     
-    # 2. Se não houver, tenta a URL que você configurou no settings.py
-    if not url:
-        url = DB_URL
-    
     if not url or "://" not in str(url):
-        return None
-        
+        url = DB_URL
+        print("Usando URL do settings.py")
+    else:
+        print("Usando DATABASE_URL do Railway")
+
     try:
         # Correção crucial para o SQLAlchemy no Railway/Heroku
         if str(url).startswith("postgres://"):
             url = str(url).replace("postgres://", "postgresql://", 1)
             
         return create_engine(
-            url, 
+            str(url), 
             pool_pre_ping=True,
             connect_args={'connect_timeout': 10}
         )
