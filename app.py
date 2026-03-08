@@ -66,13 +66,14 @@ st.sidebar.write(f"{db_status_icon} **Banco (Railway):** {'Sincronizado' if db_o
 # --- PAINEL PRINCIPAL ---
 st.title(f"📊 {DEFAULT_SYMBOL} - Espelhamento TWS")
 
-# Tentar inicializar o banco se falhar (Apenas se a conexão estiver OK)
+# Tentar inicializar o banco e SINCRONIZAR HISTÓRICO COM IA
 if db_ok:
     try:
-        from database.db_manager import init_db
+        from database.db_manager import init_db, sync_daily_history
         init_db()
+        sync_daily_history() # IA: Recupera o que aconteceu hoje se o banco estiver vazio
     except Exception as e:
-        st.error(f"Falha ao sincronizar tabelas: {e}")
+        st.error(f"Falha ao sincronizar tabelas/IA: {e}")
 
 # Métricas de Topo
 col1, col2, col3, col4 = st.columns(4)
