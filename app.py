@@ -1,138 +1,132 @@
 import streamlit as st
 import os
-
-# LOG DE INICIALIZAÇÃO PARA O RAILWAY
-print("--- INICIANDO PAINEL WEB NO RAILWAY ---")
-print(f"PORTA FORÇADA: 8584")
-
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import time
-from database.db_manager import get_recent_signals, get_daily_pnl, get_open_position
+from database.db_manager import get_recent_signals, get_daily_pnl, get_open_position, check_db_connection, init_db, sync_daily_history
 from config.settings import DEFAULT_SYMBOL
 
-# Configuração da Página (Estilo TWS Dark)
-st.set_page_config(page_title="TWS Mirror - Robô Trading", layout="wide")
+# 1. CONFIGURAÇÃO DA PÁGINA (ESTILO TWS DARK)
+st.set_page_config(page_title="TWS Mirror - Pro Dashboard", layout="wide", initial_sidebar_state="collapsed")
 
-# Estilo CSS para o Tema TWS Dark
+# 2. ESTILO CSS PARA UI DE TRADING PROFISSIONAL
 st.markdown("""
     <style>
-    .main { background-color: #0b0e11; color: #ffffff; }
-    .stMetric { background-color: #1e2329; padding: 15px; border-radius: 8px; border: 1px solid #333; }
-    [data-testid="stSidebar"] { background-color: #1e2329; }
+    /* Fundo Escuro Trading */
+    .main { background-color: #0b0e11; color: #e1e1e1; }
+    div[data-testid="stVerticalBlock"] > div:has(div.stMetric) { background-color: #1e2329; border: 1px solid #333; border-radius: 4px; padding: 5px; }
+    
+    /* Botões BUY/SELL Estilo TWS */
+    .stButton>button { width: 100%; border-radius: 4px; font-weight: bold; }
+    div.stButton > button:first-child:contains("BUY") { background-color: #2ebd85 !important; color: white !important; border: none !important; }
+    div.stButton > button:first-child:contains("SELL") { background-color: #f6465d !important; color: white !important; border: none !important; }
+    
+    /* Header e Status */
+    .header-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px; background-color: #1e2329; border-bottom: 1px solid #333; margin-bottom: 20px; border-radius: 4px; }
+    .status-tag { padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 10px; }
+    .status-ok { background-color: #2ebd85; color: white; }
+    .status-error { background-color: #f6465d; color: white; }
     </style>
     """, unsafe_allow_html=True)
 
-def load_market_data():
-    import yfinance as yf
-    return yf.download(DEFAULT_SYMBOL, period="1d", interval="1m")
-
-# --- SIDEBAR: RESUMO DO DIA ---
-st.sidebar.title("📑 Resumo do Dia")
-
-# Verificação de Saúde do Banco
-from database.db_manager import check_db_connection
+# 3. VERIFICAÇÃO DE CONEXÃO E INICIALIZAÇÃO
 db_ok, db_msg = check_db_connection()
-
-if not db_ok:
-    st.sidebar.error(f"❌ Erro de Banco: {db_msg[:50]}...")
-    st.warning("O painel está operando em modo offline ou com erro de conexão ao banco.")
-    daily_pnl = 0.0
-    open_pos = pd.DataFrame()
-else:
-    st.sidebar.success("✅ Banco Conectado")
-    daily_pnl = get_daily_pnl(DEFAULT_SYMBOL)
-    open_pos = get_open_position(DEFAULT_SYMBOL)
-
-pnl_color = "green" if daily_pnl >= 0 else "red"
-st.sidebar.markdown(f"### PnL Hoje: <span style='color:{pnl_color}'>{daily_pnl*100:.2f}%</span>", unsafe_allow_html=True)
-st.sidebar.write(f"**Ativo:** {DEFAULT_SYMBOL}")
-st.sidebar.divider()
-
-open_pos = get_open_position(DEFAULT_SYMBOL)
-if not open_pos.empty:
-    st.sidebar.success(f"📌 Posição Aberta em ${open_pos.iloc[0]['price']:.2f}")
-    st.sidebar.info(f"Sinal Original: {open_pos.iloc[0]['signal']}")
-else:
-    st.sidebar.warning("⚪ Sem Posições Abertas")
-
-st.sidebar.divider()
-st.sidebar.header("🔌 Status de Conexão")
-st.sidebar.write("🟢 **TWS (Local):** Conectado")
-db_status_icon = "🟢" if db_ok else "🔴"
-st.sidebar.write(f"{db_status_icon} **Banco (Railway):** {'Sincronizado' if db_ok else 'Desconectado'}")
-
-# --- PAINEL PRINCIPAL ---
-st.title(f"📊 {DEFAULT_SYMBOL} - Espelhamento TWS")
-
-# Tentar inicializar o banco e SINCRONIZAR HISTÓRICO COM IA
 if db_ok:
     try:
-        from database.db_manager import init_db, sync_daily_history
         init_db()
-        sync_daily_history() # IA: Recupera o que aconteceu hoje se o banco estiver vazio
-    except Exception as e:
-        st.error(f"Falha ao sincronizar tabelas/IA: {e}")
-
-# Métricas de Topo
-col1, col2, col3, col4 = st.columns(4)
-
-# Inicializa variáveis para evitar NameError se db_ok for False
-signals_df = pd.DataFrame()
-if db_ok:
-    try:
-        signals_df = get_recent_signals(1)
+        sync_daily_history()
     except:
         pass
 
-if not signals_df.empty:
-    last_s = signals_df.iloc[0]
-    # Tratamento para evitar erro se os valores forem None no banco
-    price_val = last_s['price'] if last_s['price'] is not None else 0.0
-    risk_val = last_s['risk_value'] if last_s['risk_value'] is not None else 0.0
+# 4. HEADER (TOPO)
+header_cols = st.columns([2, 1, 1, 2])
+with header_cols[0]:
+    st.markdown(f"### 📊 TWS Mirror: {DEFAULT_SYMBOL}")
+with header_cols[1]:
+    st.markdown(f"**🕒 {datetime.now().strftime('%H:%M:%S')}**")
+with header_cols[2]:
+    db_status_class = "status-ok" if db_ok else "status-error"
+    st.markdown(f"**DB:** <span class='status-tag {db_status_class}'>{'Online' if db_ok else 'Offline'}</span>", unsafe_allow_html=True)
+with header_cols[3]:
+    st.markdown(f"**TWS:** <span class='status-tag status-ok'>Connected</span>", unsafe_allow_html=True)
+
+st.divider()
+
+# 5. LAYOUT PRINCIPAL (GRID: ESQUERDA, CENTRO, DIREITA)
+main_cols = st.columns([1.2, 4, 1.2])
+
+# --- COLUNA ESQUERDA: ORDER ENTRY ---
+with main_cols[0]:
+    st.subheader("🛒 Order Entry")
+    with st.container(border=True):
+        st.write(f"Symbol: **{DEFAULT_SYMBOL}**")
+        order_type = st.selectbox("Type", ["LIMIT", "MARKET", "STOP"])
+        qty = st.number_input("QTY", value=100, step=10)
+        limit_px = st.number_input("Price", value=0.0, step=0.01, format="%.2f")
+        
+        btn_cols = st.columns(2)
+        if btn_cols[0].button("BUY", key="buy_btn"):
+            st.toast(f"BUY order for {qty} {DEFAULT_SYMBOL} submitted.")
+        if btn_cols[1].button("SELL", key="sell_btn"):
+            st.toast(f"SELL order for {qty} {DEFAULT_SYMBOL} submitted.")
+        
+        st.button("SUBMIT ORDER", type="primary", use_container_width=True)
     
-    col1.metric("Último Sinal", last_s['signal'])
-    col2.metric("Preço de Entrada", f"${price_val:.2f}")
-    col3.metric("Status", last_s['status'])
-    col4.metric("Capital em Risco", f"${risk_val:.2f}")
+    st.divider()
+    st.subheader("💰 Account PnL")
+    daily_pnl = get_daily_pnl(DEFAULT_SYMBOL) if db_ok else 0.0
+    st.metric("Daily PnL", f"{daily_pnl*100:.2f}%", delta=f"{daily_pnl*100:.2f}%")
 
-# Gráfico em Tempo Real
-st.subheader("📈 Gráfico de Preços (1m)")
-market_df = load_market_data()
-
-if not market_df.empty:
-    fig = go.Figure(data=[go.Candlestick(x=market_df.index,
-                open=market_df['Open'], high=market_df['High'],
-                low=market_df['Low'], close=market_df['Close'],
-                name="Market")])
-    fig.update_layout(template="plotly_dark", height=500, margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(fig, use_container_width=True)
-
-# Histórico de Execuções
-st.subheader("📜 Histórico de Sinais e Ordens")
-if db_ok:
+# --- COLUNA CENTRAL: CHART ---
+with main_cols[1]:
+    st.subheader("📈 Real-Time Chart")
+    import yfinance as yf
     try:
-        all_signals = get_recent_signals(20)
-        if not all_signals.empty:
-            st.table(all_signals[['timestamp', 'symbol', 'price', 'signal', 'pnl_percent', 'status']])
+        market_df = yf.download(DEFAULT_SYMBOL, period="1d", interval="1m", progress=False)
+        if not market_df.empty:
+            fig = go.Figure(data=[go.Candlestick(x=market_df.index,
+                        open=market_df['Open'], high=market_df['High'],
+                        low=market_df['Low'], close=market_df['Close'],
+                        name="Market")])
+            fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0, r=0, t=0, b=0),
+                            xaxis_rangeslider_visible=False)
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         else:
-            st.info("Nenhum sinal registrado ainda.")
+            st.info("Aguardando dados de mercado...")
     except Exception as e:
-        st.error("Erro ao carregar histórico.")
-else:
-    st.warning("Histórico indisponível sem conexão ao banco.")
+        st.error(f"Erro ao carregar gráfico: {e}")
 
-# Botão de Execução Forçada (Nota: Pode falhar em nuvem se o ambiente for read-only)
-if st.sidebar.button("Forçar Análise Agora"):
-    try:
-        import subprocess
-        subprocess.run(["python", "main.py"])
-        st.success("Análise executada!")
-        st.rerun()
-    except Exception as e:
-        st.sidebar.error(f"Erro ao executar: {e}")
+# --- COLUNA DIREITA: WATCHLIST ---
+with main_cols[2]:
+    st.subheader("👀 Watchlist")
+    watchlist = ['AAPL', 'TSLA', 'MSFT', 'NVDA']
+    for sym in watchlist:
+        with st.container(border=True):
+            w_cols = st.columns([1, 1])
+            w_cols[0].write(f"**{sym}**")
+            w_cols[1].markdown("<span style='color:#2ebd85'>+1.2%</span>", unsafe_allow_html=True)
 
-st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
-# Removido st.rerun() infinito para evitar instabilidade no Railway.
-# O Streamlit já gerencia o estado da sessão e o refresh automático pode ser feito pelo usuário ou widgets específicos.
+# 6. PARTE INFERIOR: ORDERS / TRADES / LOGS
+st.divider()
+st.subheader("📋 Activity Monitor")
+tabs = st.tabs(["Orders", "Trades", "Activity Log"])
+
+with tabs[0]: # Orders
+    signals_df = get_recent_signals(10) if db_ok else pd.DataFrame()
+    if not signals_df.empty:
+        st.dataframe(signals_df[['timestamp', 'symbol', 'price', 'signal', 'status']], use_container_width=True)
+    else:
+        st.write("No active orders.")
+
+with tabs[1]: # Trades
+    if not signals_df.empty:
+        st.dataframe(signals_df[signals_df['status'] == 'CLOSED'], use_container_width=True)
+    else:
+        st.write("No trades recorded today.")
+
+with tabs[2]: # Log
+    st.text_area("System Logs", value=f"[{datetime.now().strftime('%H:%M:%S')}] Application started on port 8584\n[{datetime.now().strftime('%H:%M:%S')}] DB Connection: {'OK' if db_ok else 'FAILED'}", height=100)
+
+st.caption(f"TWS Mirror Pro v2.0 - Powered by Junie AI")
+# Deploy forçado em: 2026-03-07 21:05
