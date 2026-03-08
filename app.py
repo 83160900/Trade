@@ -88,10 +88,14 @@ if db_ok:
 
 if not signals_df.empty:
     last_s = signals_df.iloc[0]
+    # Tratamento para evitar erro se os valores forem None no banco
+    price_val = last_s['price'] if last_s['price'] is not None else 0.0
+    risk_val = last_s['risk_value'] if last_s['risk_value'] is not None else 0.0
+    
     col1.metric("Último Sinal", last_s['signal'])
-    col2.metric("Preço de Entrada", f"${last_s['price']:.2f}")
+    col2.metric("Preço de Entrada", f"${price_val:.2f}")
     col3.metric("Status", last_s['status'])
-    col4.metric("Capital em Risco", f"${last_s['risk_value']:.2f}")
+    col4.metric("Capital em Risco", f"${risk_val:.2f}")
 
 # Gráfico em Tempo Real
 st.subheader("📈 Gráfico de Preços (1m)")
