@@ -18,10 +18,15 @@ def analyze_market_with_ai(data):
     
     signals = []
     for idx, row in breakouts.tail(5).iterrows(): # Pega os últimos 5 rompimentos
+        # Correção do FutureWarning: Garantir que pegamos o valor escalar
+        price_val = row['Close']
+        if hasattr(price_val, 'iloc'):
+            price_val = price_val.iloc[0]
+            
         signals.append({
             'timestamp': idx,
             'symbol': DEFAULT_SYMBOL,
-            'price': float(row['Close']),
+            'price': float(price_val),
             'signal': 'BUY',
             'status': 'CLOSED',
             'pnl_percent': 0.01 # PnL simbólico para histórico

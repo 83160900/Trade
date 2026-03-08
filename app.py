@@ -91,7 +91,7 @@ with main_cols[1]:
                         name="Market")])
             fig.update_layout(template="plotly_dark", height=500, margin=dict(l=0, r=0, t=0, b=0),
                             xaxis_rangeslider_visible=False)
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            st.plotly_chart(fig, width='stretch', config={'displayModeBar': False})
         else:
             st.info("Aguardando dados de mercado...")
     except Exception as e:
@@ -115,13 +115,13 @@ tabs = st.tabs(["Orders", "Trades", "Activity Log"])
 with tabs[0]: # Orders
     signals_df = get_recent_signals(10) if db_ok else pd.DataFrame()
     if not signals_df.empty:
-        st.dataframe(signals_df[['timestamp', 'symbol', 'price', 'signal', 'status']], use_container_width=True)
+        st.dataframe(signals_df[['timestamp', 'symbol', 'price', 'signal', 'status']], width='stretch')
     else:
         st.write("No active orders.")
 
 with tabs[1]: # Trades
     if not signals_df.empty:
-        st.dataframe(signals_df[signals_df['status'] == 'CLOSED'], use_container_width=True)
+        st.dataframe(signals_df[signals_df['status'] == 'CLOSED'], width='stretch')
     else:
         st.write("No trades recorded today.")
 
