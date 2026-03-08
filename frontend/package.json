@@ -10,15 +10,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "lucide-react": "^0.263.1",
-    "recharts": "^2.7.2",
     "axios": "^1.4.0",
     "clsx": "^2.0.0",
-    "tailwind-merge": "^1.14.0",
+    "framer-motion": "^10.16.4",
     "lightweight-charts": "^4.1.1",
-    "framer-motion": "^10.16.4"
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.7.2",
+    "tailwind-merge": "^1.14.0",
+    "tws-mirror-frontend": "file:"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",

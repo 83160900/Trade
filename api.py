@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from database.db_manager import get_recent_signals, get_daily_pnl, check_db_connection, analyze_market_with_ai
+from database.db_manager import get_recent_signals, get_daily_pnl, check_db_connection, analyze_market_with_ai, save_signal
 from config.settings import DEFAULT_SYMBOL
 import yfinance as yf
 import pandas as pd
@@ -86,6 +86,22 @@ async def get_ai_insights():
 async def get_pnl():
     pnl = get_daily_pnl(DEFAULT_SYMBOL)
     return {"pnl": pnl}
+
+@app.post("/api/order")
+async def submit_order(order: dict):
+    try:
+        symbol = order.get("symbol", DEFAULT_SYMBOL)
+        price = order.get("price", 0.0)
+        signal = order.get("signal", "BUY")
+        qty = order.get("qty", 100)
+        
+        # Simula o cálculo de risco (1% do capital fictício de $10k)
+        risk_value = (price * qty) * 0.01
+        
+        save_signal(symbol, price, signal, risk_value)
+        return {"status": "success", "message": f"Order {signal} for {qty} {symbol} at ${price} submitted to database."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/signals")
 async def get_signals():

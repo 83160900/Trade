@@ -4,24 +4,48 @@ from sqlalchemy import create_engine, text
 from config.settings import DB_URL, DEFAULT_SYMBOL
 import os
 
+import numpy as np
+
 # --- LÓGICA DE INTELIGÊNCIA ARTIFICIAL (ANÁLISE DE HISTÓRICO) ---
 def analyze_market_with_ai(data):
     """
-    Simula uma 'IA' que analisa o histórico do dia para preencher 
-    lacunas de sinais se o robô estava desligado.
+    Análise técnica real com RSI e Médias Móveis para gerar insights de IA.
     """
     if data.empty: return []
     
-    # Exemplo: Identifica os maiores rompimentos de alta do dia (High > Prev High)
+    # Cálculo de RSI simples
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    
+    # Médias Móveis
+    sma_20 = data['Close'].rolling(20).mean()
+    sma_50 = data['Close'].rolling(50).mean()
+    
+    last_rsi = rsi.iloc[-1]
+    last_price = data['Close'].iloc[-1]
+    
+    insights = []
+    if last_rsi < 30:
+        insights.append(f"IA: {DEFAULT_SYMBOL} em sobrevenda (RSI: {last_rsi:.2f}). Potencial de repique.")
+    elif last_rsi > 70:
+        insights.append(f"IA: {DEFAULT_SYMBOL} em sobrecompra (RSI: {last_rsi:.2f}). Cuidado com correções.")
+        
+    if last_price > sma_20.iloc[-1]:
+        insights.append("IA: Tendência de curto prazo ALTA (acima da média 20).")
+    else:
+        insights.append("IA: Tendência de curto prazo BAIXA (abaixo da média 20).")
+
+    # Identifica os maiores rompimentos de alta do dia (High > Prev High)
     high_20 = data['High'].rolling(20).max().shift(1)
     breakouts = data[data['Close'] > high_20]
     
     signals = []
-    for idx, row in breakouts.tail(5).iterrows(): # Pega os últimos 5 rompimentos
-        # Correção do FutureWarning: Garantir que pegamos o valor escalar
+    for idx, row in breakouts.tail(5).iterrows():
         price_val = row['Close']
-        if hasattr(price_val, 'iloc'):
-            price_val = price_val.iloc[0]
+        if hasattr(price_val, 'iloc'): price_val = price_val.iloc[0]
             
         signals.append({
             'timestamp': idx,
@@ -29,7 +53,8 @@ def analyze_market_with_ai(data):
             'price': float(price_val),
             'signal': 'BUY',
             'status': 'CLOSED',
-            'pnl_percent': 0.01 # PnL simbólico para histórico
+            'pnl_percent': 0.01,
+            'insight': insights[0] if insights else "Rompimento confirmado"
         })
     return signals
 
