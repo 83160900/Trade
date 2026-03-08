@@ -15,33 +15,50 @@ const TradingChart = ({ data, symbol }) => {
   const chartRef = useRef();
 
   useEffect(() => {
-    if (!data || data.length === 0) return;
+    if (!data || data.length === 0 || !chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: '#64748b',
-        fontSize: 10,
-        fontFamily: 'JetBrains Mono, Inter, sans-serif',
+        background: { type: ColorType.Solid, color: '#020617' },
+        textColor: '#94a3b8',
+        fontSize: 11,
+        fontFamily: "'JetBrains Mono', 'Inter', sans-serif",
       },
       grid: {
-        vertLines: { color: 'rgba(30, 41, 59, 0.5)' },
-        horzLines: { color: 'rgba(30, 41, 59, 0.5)' },
+        vertLines: { color: '#1e293b' },
+        horzLines: { color: '#1e293b' },
       },
       crosshair: {
         mode: 0,
-        vertLine: { labelBackgroundColor: '#0f172a' },
-        horzLine: { labelBackgroundColor: '#0f172a' },
+        vertLine: { 
+          labelBackgroundColor: '#3b82f6',
+          width: 1,
+          style: 3,
+          labelVisible: true,
+        },
+        horzLine: { 
+          labelBackgroundColor: '#3b82f6',
+          width: 1,
+          style: 3,
+          labelVisible: true,
+        },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 400,
+      height: 420,
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
-        borderColor: '#1e293b',
+        borderColor: '#334155',
+        rightOffset: 5,
+        barSpacing: 8,
       },
       rightPriceScale: {
-        borderColor: '#1e293b',
+        borderColor: '#334155',
+        autoScale: true,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
       }
     });
 
@@ -54,11 +71,31 @@ const TradingChart = ({ data, symbol }) => {
     });
 
     candlestickSeries.setData(data);
+    
+    // Adicionar média móvel para visual profissional
+    const smaData = data.map((d, i) => {
+      if (i < 20) return null;
+      const slice = data.slice(i - 20, i);
+      const avg = slice.reduce((acc, curr) => acc + curr.close, 0) / 20;
+      return { time: d.time, value: avg };
+    }).filter(d => d !== null);
+
+    const smaLine = chart.addLineSeries({
+      color: '#3b82f6',
+      lineWidth: 2,
+      lineStyle: 0,
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
+    smaLine.setData(smaData);
+
     chart.timeScale().fitContent();
     chartRef.current = chart;
 
     const handleResize = () => {
-      chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+      if (chartContainerRef.current) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -70,10 +107,19 @@ const TradingChart = ({ data, symbol }) => {
   }, [data]);
 
   return (
-    <div className="relative w-full h-full bg-[#020617] rounded-xl border border-slate-800/50 overflow-hidden shadow-2xl">
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-slate-700/50">
-        <span className="text-sm font-black text-white tracking-tighter">{symbol}</span>
-        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">LIVE</span>
+    <div className="relative w-full h-full bg-[#020617] rounded-2xl border border-slate-800/80 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+        <div className="bg-slate-900/90 backdrop-blur-xl px-3 py-1.5 rounded-lg border border-slate-700/50 flex items-center gap-3">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-blue-500 leading-none mb-0.5">SYMBOL</span>
+            <span className="text-sm font-black text-white tracking-tighter uppercase">{symbol}</span>
+          </div>
+          <div className="h-6 w-[1px] bg-slate-700"></div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+            <span className="text-[10px] font-bold text-emerald-400">DATA STREAMING</span>
+          </div>
+        </div>
       </div>
       <div ref={chartContainerRef} className="w-full h-full" />
     </div>
@@ -82,20 +128,34 @@ const TradingChart = ({ data, symbol }) => {
 
 // Componente de Card de Status Mini
 const StatusCard = ({ label, value, trend, icon: Icon, colorClass }) => (
-  <div className="bg-slate-900/40 border border-slate-800/50 p-4 rounded-xl backdrop-blur-sm flex flex-col gap-1">
+  <motion.div 
+    whileHover={{ y: -2, backgroundColor: 'rgba(30, 41, 59, 0.6)' }}
+    className="bg-slate-900/40 border border-slate-800/50 p-5 rounded-2xl backdrop-blur-md flex flex-col gap-2 transition-colors shadow-lg"
+  >
     <div className="flex justify-between items-start">
-      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{label}</span>
-      <Icon size={14} className={colorClass || "text-slate-400"} />
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em]">{label}</span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-xl font-black text-white tracking-tighter">{value}</span>
+          {trend !== undefined && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${trend >= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+              {trend >= 0 ? '+' : ''}{trend}%
+            </span>
+          )}
+        </div>
+      </div>
+      <div className={`p-2 rounded-xl bg-slate-950/50 border border-slate-800/50 ${colorClass || "text-slate-400"}`}>
+        <Icon size={18} />
+      </div>
     </div>
-    <div className="flex items-baseline gap-2">
-      <span className="text-lg font-black text-white">{value}</span>
-      {trend && (
-        <span className={`text-[10px] font-bold ${trend >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-          {trend >= 0 ? '+' : ''}{trend}%
-        </span>
-      )}
+    <div className="h-1 w-full bg-slate-800/30 rounded-full overflow-hidden mt-1">
+      <motion.div 
+        initial={{ width: 0 }}
+        animate={{ width: '70%' }}
+        className={`h-full ${colorClass?.includes('blue') ? 'bg-blue-500' : colorClass?.includes('emerald') ? 'bg-emerald-500' : colorClass?.includes('amber') ? 'bg-amber-500' : 'bg-purple-500'}`}
+      />
     </div>
-  </div>
+  </motion.div>
 );
 
 function App() {
@@ -107,6 +167,7 @@ function App() {
   const [orderQty, setOrderQty] = useState(100);
   const [notif, setNotif] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Activity Monitor');
 
   const fetchData = async () => {
     try {
@@ -182,11 +243,18 @@ function App() {
             <Cpu size={24} className="text-white" />
           </div>
           <nav className="flex flex-col gap-6">
-            {[LayoutDashboard, BarChart3, List, History, PieChart, Globe].map((Icon, i) => (
-              <button key={i} className={`p-2 rounded-lg transition-all group relative ${i === 0 ? 'bg-slate-800 text-blue-400' : 'text-slate-500 hover:text-white'}`}>
-                <Icon size={20} />
-                <div className="absolute left-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                  {Icon.name}
+            {[
+              { icon: LayoutDashboard, label: 'Dashboard' },
+              { icon: BarChart3, label: 'Market' },
+              { icon: List, label: 'Watchlist' },
+              { icon: History, label: 'History' },
+              { icon: PieChart, label: 'Portfolio' },
+              { icon: Globe, label: 'Global' }
+            ].map((item, i) => (
+              <button key={i} className={`p-2 rounded-lg transition-all group relative ${i === 0 ? 'bg-blue-600/10 text-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.1)]' : 'text-slate-500 hover:text-white hover:bg-slate-800/50'}`}>
+                <item.icon size={20} />
+                <div className="absolute left-14 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 font-black tracking-widest uppercase">
+                  {item.label}
                 </div>
               </button>
             ))}
@@ -244,7 +312,7 @@ function App() {
           <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6 scrollbar-hide">
             
             {/* Top Stat Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatusCard 
                 label="Portfolio Value" 
                 value="$142,910.42" 
@@ -255,7 +323,7 @@ function App() {
               <StatusCard 
                 label="Daily Unrealized PnL" 
                 value={`$${(pnl * 1429).toFixed(2)}`} 
-                trend={(pnl * 100).toFixed(1)} 
+                trend={Number((pnl * 100).toFixed(1))} 
                 icon={TrendingUp} 
                 colorClass={pnl >= 0 ? "text-emerald-400" : "text-rose-400"}
               />
@@ -478,14 +546,18 @@ function App() {
             <section className="bg-slate-950/50 border border-slate-800/80 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-md">
                <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
                   <div className="flex gap-8">
-                    {['Activity Monitor', 'Open Orders', 'Alert History'].map((tab, i) => (
-                      <button key={tab} className={`text-[10px] font-black uppercase tracking-widest pb-1 transition-all ${i === 0 ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-300'}`}>
+                    {['Activity Monitor', 'Open Orders', 'Alert History'].map((tab) => (
+                      <button 
+                        key={tab} 
+                        onClick={() => setActiveTab(tab)}
+                        className={`text-[10px] font-black uppercase tracking-widest pb-1 transition-all border-b-2 ${activeTab === tab ? 'text-blue-500 border-blue-500' : 'text-slate-500 border-transparent hover:text-slate-300'}`}
+                      >
                         {tab}
                       </button>
                     ))}
                   </div>
                   <div className="text-[9px] font-black text-slate-600 font-mono flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full"></div>
+                    <div className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
                     REAL-TIME SYNC ACTIVE: {new Date().toLocaleTimeString()}
                   </div>
                </div>

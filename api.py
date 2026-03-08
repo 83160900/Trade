@@ -25,8 +25,9 @@ async def get_status():
         # Tenta pegar o preço mais recente de forma robusta
         data = ticker.history(period="1d", interval="1m")
         if not data.empty:
-            price = float(data['Close'].iloc[-1])
-            change = float(((data['Close'].iloc[-1] - data['Open'].iloc[0]) / data['Open'].iloc[0]) * 100)
+            price = float(data['Close'].iloc[-1].iloc[0]) if isinstance(data['Close'].iloc[-1], pd.Series) else float(data['Close'].iloc[-1])
+            open_price = float(data['Open'].iloc[0].iloc[0]) if isinstance(data['Open'].iloc[0], pd.Series) else float(data['Open'].iloc[0])
+            change = float(((price - open_price) / open_price) * 100)
         else:
             price = 0.0
             change = 0.0
@@ -44,25 +45,28 @@ async def get_status():
     }
 
 @app.get("/api/chart")
-async def get_chart_data(symbol: str = DEFAULT_SYMBOL):
+async def get_chart_data(symbol: str = None):
     try:
+        if not symbol:
+            symbol = DEFAULT_SYMBOL
         data = yf.download(symbol, period="1d", interval="5m", progress=False)
         if data.empty:
             return []
         
         # Formata para Lightweight Charts (time em timestamp Unix)
+        # IMPORTANTE: Garantir que o timestamp seja em segundos para o React
         chart_data = []
         for index, row in data.iterrows():
             chart_data.append({
                 "time": int(index.timestamp()),
-                "open": float(row['Open']),
-                "high": float(row['High']),
-                "low": float(row['Low']),
-                "close": float(row['Close']),
+                "open": float(row['Open'].iloc[0]) if isinstance(row['Open'], pd.Series) else float(row['Open']),
+                "high": float(row['High'].iloc[0]) if isinstance(row['High'], pd.Series) else float(row['High']),
+                "low": float(row['Low'].iloc[0]) if isinstance(row['Low'], pd.Series) else float(row['Low']),
+                "close": float(row['Close'].iloc[0]) if isinstance(row['Close'], pd.Series) else float(row['Close']),
             })
         return chart_data
     except Exception as e:
-        print(f"Erro no gráfico: {e}")
+        print(f"Erro no gráfico para {symbol}: {e}")
         return []
 
 @app.get("/api/ai-insights")
