@@ -8,3 +8,5 @@ plotly
 pytz
 psycopg2-binary
 sqlalchemy
+fastapi
+uvicorn
