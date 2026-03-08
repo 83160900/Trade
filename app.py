@@ -100,12 +100,22 @@ with main_cols[1]:
 # --- COLUNA DIREITA: WATCHLIST ---
 with main_cols[2]:
     st.subheader("👀 Watchlist")
-    watchlist = ['AAPL', 'TSLA', 'MSFT', 'NVDA']
-    for sym in watchlist:
+    from data.market_data import get_watchlist_data
+    watchlist_syms = ['AAPL', 'TSLA', 'MSFT', 'NVDA']
+    w_data = get_watchlist_data(watchlist_syms)
+    
+    for sym in watchlist_syms:
         with st.container(border=True):
             w_cols = st.columns([1, 1])
             w_cols[0].write(f"**{sym}**")
-            w_cols[1].markdown("<span style='color:#2ebd85'>+1.2%</span>", unsafe_allow_html=True)
+            
+            # Dados reais do yfinance
+            price = w_data.get(sym, {}).get("price", 0.0)
+            change = w_data.get(sym, {}).get("change", 0.0)
+            
+            color = "#2ebd85" if change >= 0 else "#f6465d"
+            w_cols[1].markdown(f"**${price:.2f}**")
+            st.markdown(f"<span style='color:{color}'>{change:+.2f}%</span>", unsafe_allow_html=True)
 
 # 6. PARTE INFERIOR: ORDERS / TRADES / LOGS
 st.divider()
